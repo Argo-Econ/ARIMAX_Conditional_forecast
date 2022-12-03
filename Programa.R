@@ -23,7 +23,7 @@ p_load(readxl, sandwich, car, lmtest, TSstudio, lmtest, forecast
 #------------------------------------------------------------------------------#
 Base_ent <- read_xlsx("Base_Modelo_ARIMAX.xlsx"
                               , sheet = "Base"
-                              , range = "a2:e271", col_names = T)
+                              , range = "a2:e276", col_names = T)
 Base_ent_ts <- ts(Base_ent[,-1],start = c(2000,1),frequency = 12)
 tail(Base_ent_ts)
 
@@ -35,6 +35,24 @@ windows()
 Base_ent_ts %>% autoplot(facets=T) + xlab("Fecha") + ylab("Valores")
 Base_ent_ts_lx <- log(Base_ent_ts)
 
+
+# Transformaciones ----
+#------------------------------------------------------------------------------#
+
+# diferencia log mes -> es simil con la inflación mensual
+dlx_IPC <- diff(log(Base_ent_ts[,1]), lag = 1, differences = 1)
+
+# Aceleracion mensual de la inflacion mensual
+ddlx_IPC <- diff(dlx_IPC, lag = 1, differences = 1)
+
+# diferencia log anual -> simil inflacion anual
+slx_IPC <- diff(log(Base_ent_ts[,1]), lag = 12, differences = 1)
+
+# Aceleracion mensual inflacion anual
+dslx_IPC <- diff(slx_IPC, lag = 1, differences = 1)
+
+# Aceleracion anual inflacion anual
+sslx_IPC <- diff(slx_IPC, lag = 12, differences = 1)
 
 
 # Test de estacionariedad ----
@@ -60,11 +78,11 @@ ts_cor(diff(Base_ent_ts[,1]))
 nsdiffs(diff(Base_ent_ts[,1]))
 
 eacf(diff(Base_ent_ts[,1]))
-eacf(diff(diff(Base_ent_ts[,1],lag = 1), lag = 12))
+
 
 
 # Primer modelo modelo IPC sin Ex?genas
-mod1 <- Arima(Base_ent_ts_lx[,1],order = c(1,1,3),seasonal = c(1,1,0))
+mod1 <- Arima(Base_ent_ts_lx[,1],order = c(2,2,2),seasonal = c(1,0,0))
 summary(mod1)
 lmtest::coeftest(mod1)
 checkresiduals(mod1)
@@ -85,8 +103,8 @@ shapiro.test(mod2$residuals)
 # Pronos exogenas ----
 #------------------------------------------------------------------------------#
 exogenas_pry <- ts(read_xlsx("Base_Modelo_ARIMAX.xlsx"
-                             , sheet = "Exogenas",range = "b3:d22")
-                   , start = c(2022,6), frequency = 12)
+                             , sheet = "Exogenas",range = "b3:d17")
+                   , start = c(2022,11), frequency = 12)
 exogenas_pry_lx <- log(exogenas_pry)
 dim(exogenas_pry_lx)
 
@@ -94,7 +112,7 @@ dim(exogenas_pry_lx)
 # -----------------------------------------------------------------------------#
 
 # Pron?stico libre modelo 1
-horizonte <- 19
+horizonte <- 14
 fore_mod1 <- forecast(mod1,h=horizonte)
 fore_mod1$mean
 
@@ -137,14 +155,14 @@ rmse_err_mod1  <- rmse_err_mod2 <- matrix(NA, horizonte,pronostico)
  
 # Errores modelo propio mod1 ----
 # -----------------------------------------------------------------------------#
-
+i <- j <- 1
 for(j in 1:horizonte){
   base_train <- ts(base_in[(1:round(nrow(base_in)*recorte_fm)),]
                    , start = c(2000,3),frequency = 12)
   for(i in 1:(pronostico-j+1)) {
-    mod1_sim <- Arima(base_train[,1], order = c(1,1,3),seasonal = c(1,1,0)
+    mod1_sim <- Arima(base_train[,1], order = c(2,2,2),seasonal = c(1,0,0)
                       , xreg = base_train[,-1]
-                      , method="CSS")  
+                      , method="CSS-ML")  
     
     if(j==1){pronos_ind <- t(exogenas[(nrow(as.matrix(base_train))+1):(nrow(as.matrix(base_train))+j),])}
     else {pronos_ind <- exogenas[(nrow(as.matrix(base_train))+1):(nrow(as.matrix(base_train))+j),]}
@@ -216,9 +234,9 @@ write.csv(t(rmse_err_mod2),"Datos_sal/estructura_errores_mod2.csv")
 salidaDM <- NULL
 
 for(i in 1:horizonte){
-  salida <-  cbind("esta. prueba"=dm.test(rmse_err_mod1[i,],rmse_err_mod2[i,]
+  salida <-  cbind("esta. prueba"=dm.test(rmse_err_mod1[i,],rmse_err_mod2[i,], h = i
                                           ,alternative=c("two.sided"))$statistic
-                   ,"p-valor"=dm.test(rmse_err_mod1[i,],rmse_err_mod2[i,]
+                   ,"p-valor"=dm.test(rmse_err_mod1[i,],rmse_err_mod2[i,], h = i
                                       ,alternative=c("two.sided"))$p.value)
   salidaDM <- rbind(salidaDM,salida)
 }
@@ -274,8 +292,8 @@ View(H_mat2)
 # Definicion de las restricciones y matriz C
 
 # Objetivo
-# Restriccion1: finalizar 2022 la inflacion sea 6%
-# Restriccion2: finalizar 2023 con inflacion sea 3.5%
+# Restriccion1: finalizar 2022 la inflacion sea 12%
+# Restriccion2: finalizar 2023 con inflacion sea 5%
 
 
 Z1 <-  base::matrix(fore_mod1$mean, ncol = 1
@@ -293,7 +311,7 @@ C_def <- base::matrix(C_in, ncol = num_restri
 base::colnames(C_def) <- base::paste("Rest"
                                      ,base::seq(1:num_restri),sep = "_")
 C_def <- xts(C_def
-             , order.by = seq.Date(as.Date("2022-6-1"), as.Date("2023-12-1")
+             , order.by = seq.Date(as.Date("2022-11-1"), as.Date("2023-12-1")
                                    , "month") )
   
 
@@ -301,20 +319,20 @@ C_def <- xts(C_def
 # -----------------------------------------------------------------------------#
 
 
-C_def[7,1] <- 1  # Bandera donde se va a restringir el pronostico
-C_def[19,2] <- 1 # Restriccion 2
+C_def[2,1] <- 1  # Bandera donde se va a restringir el pronostico
+C_def[14,2] <- 1 # Restriccion 2
 
 
 # Definicion de la restriccion puntual. Esto se hace basado 
 # en una fecha de referencia para el caso de la inflacion
-# Es decir, se quiere que al cierre de 2022 la inflacion sea 6%.
-# entonces valor de log(IPC 2022:12) = log(IPC 2021:12*1.06)
-#                   log(IPC 2023:12) = log(IPC 2019:12*1.06*1.03)
+# Es decir, se quiere que al cierre de 2022 la inflacion sea 12%.
+# entonces valor de log(IPC 2022:12) = log(IPC 2021:12*1.12)
+#                   log(IPC 2023:12) = log(IPC 2021:12*1.12*1.05)
 
-valor_log_ref <- tail(Base_ent_ts)[1,1]   # valor log de IPC 2021:12
+valor_log_ref <- tail(Base_ent_ts,11)[1,1]   # valor log de IPC 2021:12
 
-fore_obj <- base::matrix(c(valor_log_ref*1.06
-                          , valor_log_ref*1.06*1.03)
+fore_obj <- base::matrix(c(valor_log_ref*1.12
+                          , valor_log_ref*1.12*1.05)
                         , ncol = 1, nrow = num_restri
                         , byrow = T)
 
@@ -325,7 +343,7 @@ fore_obj <- log(fore_obj)
 # -----------------------------------------------------------------------------#
 
 res_e <- fore_obj - base::t(C_def)%*%Z1
-res_b <- matlib::inv(base::t(C_def)%*%base::t(H_mat1)%*%H_mat1%*%C_def)
+res_b <- solve(base::t(C_def)%*%base::t(H_mat1)%*%H_mat1%*%C_def)
 res_a <- base::t(H_mat1)%*%(H_mat1)%*%C_def%*%res_b
 
 pronos_rest <- fore_mod1$mean + res_a%*%res_e
@@ -340,6 +358,9 @@ var_mom <- base::round((indice_pry[2:nrow(indice_pry)]/indice_pry[1:(nrow(indice
 
 salida <- base::cbind("IPC"=indice_pry,"var_mom"=c(NA,var_mom)
                       ,"var_yoy"=c(rep(NA,12),var_yoy))
+salida <- xts(salida
+              , order.by = seq.Date(as.Date("2000-1-1"), as.Date("2023-12-1")
+                                    , "month")) 
 salida
 write.csv(salida,"Datos_sal/pronostico_restringido_mod1.csv")
 
@@ -352,7 +373,7 @@ Z2 <-  base::matrix(fore_mod2$mean, ncol = 1
 
 
 res_e <- fore_obj - base::t(C_def)%*%Z2
-res_b <- matlib::inv(base::t(C_def)%*%base::t(H_mat2)%*%H_mat2%*%C_def)
+res_b <- solve(base::t(C_def)%*%base::t(H_mat2)%*%H_mat2%*%C_def)
 res_a <- base::t(H_mat2)%*%(H_mat2)%*%C_def%*%res_b
 
 pronos_rest2 <- fore_mod2$mean + res_a%*%res_e
@@ -366,12 +387,17 @@ var_mom2 <- base::round((indice_pry2[2:nrow(indice_pry2)]/indice_pry2[1:(nrow(in
 
 salida2 <- base::cbind("IPC"=indice_pry2,"var_mom"=c(NA,var_mom2)
                       ,"var_yoy"=c(rep(NA,12),var_yoy2))
+salida2 <- xts(salida2
+              , order.by = seq.Date(as.Date("2000-1-1"), as.Date("2023-12-1")
+                                    , "month")) 
 salida2
 write.csv(salida2,"Datos_sal/pronostico_restringido_mod2.csv")
 
 
   
-# (por mejorar) Test de compatibilidad ----
+# (por mejorar, no ejecutar) ----
+#  Test de compatibilidad de las restricciones con la historia
+
 num_restri
 
 test_rest <- function(fore_obj, fore_libre, sigma_modelo
