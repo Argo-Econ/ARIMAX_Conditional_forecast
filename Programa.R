@@ -16,14 +16,15 @@ require(pacman) # library(pacman)
 
 p_load(readxl, sandwich, car, lmtest, TSstudio, lmtest, forecast
        , tseries, TSA, tsoutliers, GGally, xts, ggplot2, dplyr
-       , MASS, nortest, tsoutliers, astsa, Metrics, FitARMA, matlib)
+       , MASS, nortest, tsoutliers, astsa, Metrics, FitARMA, matlib, ltsa
+       , bestglm)
 
 
 # Importacion datos ----
 #------------------------------------------------------------------------------#
 Base_ent <- read_xlsx("Base_Modelo_ARIMAX.xlsx"
                               , sheet = "Base"
-                              , range = "a2:e276", col_names = T)
+                              , range = "a2:e283", col_names = T)
 Base_ent_ts <- ts(Base_ent[,-1],start = c(2000,1),frequency = 12)
 tail(Base_ent_ts)
 
@@ -93,7 +94,7 @@ shapiro.test(mod1$residuals)
 mod2 <- auto.arima(Base_ent_ts_lx[,1],d=1, D = 1, stationary = F
                    , stepwise = F, xreg = Base_ent_ts_lx[,-1]
                    , trace = T)
-|summary(mod2)
+summary(mod2)
 lmtest::coeftest(mod2)
 checkresiduals(mod2)
 shapiro.test(mod2$residuals)
@@ -103,8 +104,8 @@ shapiro.test(mod2$residuals)
 # Pronos exogenas ----
 #------------------------------------------------------------------------------#
 exogenas_pry <- ts(read_xlsx("Base_Modelo_ARIMAX.xlsx"
-                             , sheet = "Exogenas",range = "b3:d17")
-                   , start = c(2022,11), frequency = 12)
+                             , sheet = "Exogenas",range = "b3:d22")
+                   , start = c(2023,6), frequency = 12)
 exogenas_pry_lx <- log(exogenas_pry)
 dim(exogenas_pry_lx)
 
@@ -112,9 +113,9 @@ dim(exogenas_pry_lx)
 # -----------------------------------------------------------------------------#
 
 # Pron?stico libre modelo 1
-horizonte <- 14
+horizonte <- 19
 fore_mod1 <- forecast(mod1,h=horizonte)
-fore_mod1$mean
+exp(fore_mod1$mean)
 
 windows()
 plot(fore_mod1, main = "Pronos libres log IPC mod1")
@@ -161,7 +162,7 @@ for(j in 1:horizonte){
                    , start = c(2000,1),frequency = 12)
   for(i in 1:(pronostico-j+1)) {
     mod1_sim <- Arima(base_train[,1], order = c(2,2,2),seasonal = c(1,0,0)
-                      #, xreg = base_train[,-1]
+                      , xreg = base_train[,-1]
                       , method="CSS-ML")  
     
     if(j==1){pronos_ind <- t(exogenas[(nrow(as.matrix(base_train))+1):(nrow(as.matrix(base_train))+j),])}
@@ -312,7 +313,7 @@ C_def <- base::matrix(C_in, ncol = num_restri
 base::colnames(C_def) <- base::paste("Rest"
                                      ,base::seq(1:num_restri),sep = "_")
 C_def <- xts(C_def
-             , order.by = seq.Date(as.Date("2022-11-1"), as.Date("2023-12-1")
+             , order.by = seq.Date(as.Date("2023-6-1"), as.Date("2024-12-1")
                                    , "month") )
   
 
@@ -320,8 +321,8 @@ C_def <- xts(C_def
 # -----------------------------------------------------------------------------#
 
 
-C_def[2,1] <- 1  # Bandera donde se va a restringir el pronostico
-C_def[14,2] <- 1 # Restriccion 2
+C_def[7,1] <- 1  # Bandera donde se va a restringir el pronostico
+C_def[19,2] <- 1 # Restriccion 2
 
 
 # Definicion de la restriccion puntual. Esto se hace basado 
@@ -330,10 +331,10 @@ C_def[14,2] <- 1 # Restriccion 2
 # entonces valor de log(IPC 2022:12) = log(IPC 2021:12)*1.12
 #                   log(IPC 2023:12) = log(IPC 2021:12)*1.12*1.05
 
-valor_log_ref <- tail(Base_ent_ts,11)[1,1]   # valor log de IPC 2021:12
+valor_log_ref <- tail(Base_ent_ts,6)[1,1]   # valor log de IPC 2022:12
 
-fore_obj <- base::matrix(c(valor_log_ref*1.12
-                          , valor_log_ref*1.12*1.05)
+# Definición valores a los que debe estar condicionado el pronóstico
+fore_obj <- base::matrix(c(valor_log_ref*1.09, valor_log_ref*1.09*1.05)
                         , ncol = 1, nrow = num_restri
                         , byrow = T)
 
@@ -360,7 +361,7 @@ var_mom <- base::round((indice_pry[2:nrow(indice_pry)]/indice_pry[1:(nrow(indice
 salida <- base::cbind("IPC"=indice_pry,"var_mom"=c(NA,var_mom)
                       ,"var_yoy"=c(rep(NA,12),var_yoy))
 salida <- xts(salida
-              , order.by = seq.Date(as.Date("2000-1-1"), as.Date("2023-12-1")
+              , order.by = seq.Date(as.Date("2000-1-1"), as.Date("2024-12-1")
                                     , "month")) 
 salida
 write.csv(salida,"Datos_sal/pronostico_restringido_mod1.csv")
@@ -389,7 +390,7 @@ var_mom2 <- base::round((indice_pry2[2:nrow(indice_pry2)]/indice_pry2[1:(nrow(in
 salida2 <- base::cbind("IPC"=indice_pry2,"var_mom"=c(NA,var_mom2)
                       ,"var_yoy"=c(rep(NA,12),var_yoy2))
 salida2 <- xts(salida2
-              , order.by = seq.Date(as.Date("2000-1-1"), as.Date("2023-12-1")
+              , order.by = seq.Date(as.Date("2000-1-1"), as.Date("2024-12-1")
                                     , "month")) 
 salida2
 write.csv(salida2,"Datos_sal/pronostico_restringido_mod2.csv")
