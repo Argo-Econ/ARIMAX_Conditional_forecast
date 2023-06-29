@@ -93,7 +93,7 @@ shapiro.test(mod1$residuals)
 mod2 <- auto.arima(Base_ent_ts_lx[,1],d=1, D = 1, stationary = F
                    , stepwise = F, xreg = Base_ent_ts_lx[,-1]
                    , trace = T)
-summary(mod2)
+|summary(mod2)
 lmtest::coeftest(mod2)
 checkresiduals(mod2)
 shapiro.test(mod2$residuals)
@@ -122,7 +122,7 @@ lines(mod1$fitted,col="blue")
 
 # Pron?stico libre modelo 2
 fore_mod2 <- forecast(mod2, xreg = exogenas_pry_lx)
-fore_mod2$mean
+exp(fore_mod2$mean)
 
 windows()
 plot(fore_mod2,main="Pronos libres log IPC mod2")
@@ -158,16 +158,17 @@ rmse_err_mod1  <- rmse_err_mod2 <- matrix(NA, horizonte,pronostico)
 i <- j <- 1
 for(j in 1:horizonte){
   base_train <- ts(base_in[(1:round(nrow(base_in)*recorte_fm)),]
-                   , start = c(2000,3),frequency = 12)
+                   , start = c(2000,1),frequency = 12)
   for(i in 1:(pronostico-j+1)) {
     mod1_sim <- Arima(base_train[,1], order = c(2,2,2),seasonal = c(1,0,0)
-                      , xreg = base_train[,-1]
+                      #, xreg = base_train[,-1]
                       , method="CSS-ML")  
     
     if(j==1){pronos_ind <- t(exogenas[(nrow(as.matrix(base_train))+1):(nrow(as.matrix(base_train))+j),])}
     else {pronos_ind <- exogenas[(nrow(as.matrix(base_train))+1):(nrow(as.matrix(base_train))+j),]}
     
-    fore_mod1_sim <- forecast(mod1_sim, xreg=pronos_ind)
+    fore_mod1_sim <- forecast(mod1_sim
+                              , xreg=pronos_ind)
     
     rmse_err  <- rmse(base_in[(nrow(as.matrix(base_train))+1):(nrow(as.matrix(base_train))+j),1],fore_mod1_sim$mean)
     rmse_err_mod1[j,i] <- rmse_err
@@ -326,8 +327,8 @@ C_def[14,2] <- 1 # Restriccion 2
 # Definicion de la restriccion puntual. Esto se hace basado 
 # en una fecha de referencia para el caso de la inflacion
 # Es decir, se quiere que al cierre de 2022 la inflacion sea 12%.
-# entonces valor de log(IPC 2022:12) = log(IPC 2021:12*1.12)
-#                   log(IPC 2023:12) = log(IPC 2021:12*1.12*1.05)
+# entonces valor de log(IPC 2022:12) = log(IPC 2021:12)*1.12
+#                   log(IPC 2023:12) = log(IPC 2021:12)*1.12*1.05
 
 valor_log_ref <- tail(Base_ent_ts,11)[1,1]   # valor log de IPC 2021:12
 
