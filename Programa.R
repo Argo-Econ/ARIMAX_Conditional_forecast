@@ -68,7 +68,7 @@ kpss.test(diff(Base_ent_ts[,1]))
 pp.test(diff(Base_ent_ts[,1]))  
 
 ndiffs(Base_ent_ts[,1])
-# diferenciado una vez se logra la estacionariedad -> d=1
+# diferenciado una vez se logra la estacionariedad -> d=2
 
 
 # Identificar estructura ----
@@ -152,8 +152,12 @@ pronostico <- 24       # simulaciones por cada horizonte de pronostico
 
 rmse_err_mod1  <- rmse_err_mod2 <- matrix(NA, horizonte,pronostico)
 
-
+rownames(rmse_err_mod1) <- c("err_1paso","err_2paso","err_3paso","err_4paso"
+                             ,"err_5paso","err_6paso","err_7paso","err_8paso"
+                             ,"err_9paso","err_10paso","err_11paso","err_12paso")
+colnames(rmse_err_mod1) <- paste("Simul",seq(1:pronostico),sep = "_")
  
+
 # Errores modelo propio mod1 ----
 # -----------------------------------------------------------------------------#
 i <- j <- 1
@@ -178,10 +182,6 @@ for(j in 1:horizonte){
   print(t(rmse_err_mod1))
 }
 
-rownames(rmse_err_mod1) <- c("err_1paso","err_2paso","err_3paso","err_4paso"
-                             ,"err_5paso","err_6paso","err_7paso","err_8paso"
-                             ,"err_9paso","err_10paso","err_11paso","err_12paso")
-colnames(rmse_err_mod1) <- paste("Simul",seq(1:pronostico),sep = "_")
 
 View(rmse_err_mod1)
 
@@ -190,6 +190,11 @@ write.csv(t(rmse_err_mod1),"Datos_sal/estructura_errores_mod1.csv")
 
 # Errores modelo propio mod2 ----
 # -----------------------------------------------------------------------------#
+rownames(rmse_err_mod2) <- c("err_1paso","err_2paso","err_3paso","err_4paso"
+                             ,"err_5paso","err_6paso","err_7paso","err_8paso"
+                             ,"err_9paso","err_10paso","err_11paso","err_12paso")
+colnames(rmse_err_mod2) <- paste("Simul",seq(1:pronostico),sep = "_")
+
 
 j <- i <- 1 
 for(j in 1:horizonte){
@@ -214,10 +219,6 @@ for(j in 1:horizonte){
   print(t(rmse_err_mod2))
 }
 
-rownames(rmse_err_mod2) <- c("err_1paso","err_2paso","err_3paso","err_4paso"
-                             ,"err_5paso","err_6paso","err_7paso","err_8paso"
-                             ,"err_9paso","err_10paso","err_11paso","err_12paso")
-colnames(rmse_err_mod2) <- paste("Simul",seq(1:pronostico),sep = "_")
 
 View(rmse_err_mod2)
 
@@ -237,9 +238,9 @@ salidaDM <- NULL
 
 for(i in 1:horizonte){
   salida <-  cbind("esta. prueba"=dm.test(rmse_err_mod1[i,],rmse_err_mod2[i,], h = i
-                                          ,alternative=c("two.sided"))$statistic
+                                          ,alternative=c("less"))$statistic
                    ,"p-valor"=dm.test(rmse_err_mod1[i,],rmse_err_mod2[i,], h = i
-                                      ,alternative=c("two.sided"))$p.value)
+                                      ,alternative=c("less"))$p.value)
   salidaDM <- rbind(salidaDM,salida)
 }
 rownames(salidaDM) <- c("1_paso","2_pasos","3_pasos","4_pasos"
@@ -294,8 +295,8 @@ View(H_mat2)
 # Definicion de las restricciones y matriz C
 
 # Objetivo
-# Restriccion1: finalizar 2022 la inflacion sea 12%
-# Restriccion2: finalizar 2023 con inflacion sea 5%
+# Restriccion1: finalizar 2023 la inflacion sea 12%
+# Restriccion2: finalizar 2024 con inflacion sea 5%
 
 
 Z1 <-  base::matrix(fore_mod1$mean, ncol = 1
@@ -327,14 +328,14 @@ C_def[19,2] <- 1 # Restriccion 2
 
 # Definicion de la restriccion puntual. Esto se hace basado 
 # en una fecha de referencia para el caso de la inflacion
-# Es decir, se quiere que al cierre de 2022 la inflacion sea 12%.
-# entonces valor de log(IPC 2022:12) = log(IPC 2021:12)*1.12
-#                   log(IPC 2023:12) = log(IPC 2021:12)*1.12*1.05
+# Es decir, se quiere que al cierre de 2023 la inflacion sea 12%.
+# entonces valor de log(IPC 2023:12) = log(IPC 2022:12)*1.12
+#                   log(IPC 2024:12) = log(IPC 2022:12)*1.12*1.05
 
-valor_log_ref <- tail(Base_ent_ts,6)[1,1]   # valor log de IPC 2022:12
+valor_log_ref <- tail(Base_ent_ts,6)[1,1]   # valor log de IPC 2023:12
 
 # Definición valores a los que debe estar condicionado el pronóstico
-fore_obj <- base::matrix(c(valor_log_ref*1.09, valor_log_ref*1.09*1.05)
+fore_obj <- base::matrix(c(valor_log_ref*1.12, valor_log_ref*1.12*1.05)
                         , ncol = 1, nrow = num_restri
                         , byrow = T)
 
@@ -433,9 +434,6 @@ test_rest(fore_obj = fore_obj, fore_libre = fore_mod2$mean
           , num_restri = num_restri 
           , H_entra = H_mat2
           , C_entra = C_def, num_datos = dim(Base_ent_ts)[1])
-
-
-
 
 
 
