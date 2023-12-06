@@ -24,7 +24,7 @@ p_load(readxl, sandwich, car, lmtest, TSstudio, lmtest, forecast
 #------------------------------------------------------------------------------#
 Base_ent <- read_xlsx("Base_Modelo_ARIMAX.xlsx"
                               , sheet = "Base"
-                              , range = "a2:e283", col_names = T)
+                              , range = "a2:e288", col_names = T)
 Base_ent_ts <- ts(Base_ent[,-1],start = c(2000,1),frequency = 12)
 tail(Base_ent_ts)
 
@@ -104,8 +104,8 @@ shapiro.test(mod2$residuals)
 # Pronos exogenas ----
 #------------------------------------------------------------------------------#
 exogenas_pry <- ts(read_xlsx("Base_Modelo_ARIMAX.xlsx"
-                             , sheet = "Exogenas",range = "b3:d22")
-                   , start = c(2023,6), frequency = 12)
+                             , sheet = "Exogenas",range = "b3:d17")
+                   , start = c(2023,11), frequency = 12)
 exogenas_pry_lx <- log(exogenas_pry)
 dim(exogenas_pry_lx)
 
