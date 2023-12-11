@@ -24,7 +24,7 @@ p_load(readxl, sandwich, car, lmtest, TSstudio, lmtest, forecast
 #------------------------------------------------------------------------------#
 Base_ent <- read_xlsx("Base_Modelo_ARIMAX.xlsx"
                               , sheet = "Base"
-                              , range = "a2:e288", col_names = T)
+                              , range = "a2:e289", col_names = T)
 Base_ent_ts <- ts(Base_ent[,-1],start = c(2000,1),frequency = 12)
 tail(Base_ent_ts)
 
@@ -61,7 +61,7 @@ sslx_IPC <- diff(slx_IPC, lag = 12, differences = 1)
 adf.test(Base_ent_ts[,1]) 
 kpss.test(Base_ent_ts[,1])
 pp.test(Base_ent_ts[,1])  
-# senecesita una diferenciar para lograr la estacionariedad
+# se necesita una diferenciar para lograr la estacionariedad
 
 adf.test(diff(Base_ent_ts[,1]))
 kpss.test(diff(Base_ent_ts[,1]))
@@ -104,16 +104,16 @@ shapiro.test(mod2$residuals)
 # Pronos exogenas ----
 #------------------------------------------------------------------------------#
 exogenas_pry <- ts(read_xlsx("Base_Modelo_ARIMAX.xlsx"
-                             , sheet = "Exogenas",range = "b3:d17")
-                   , start = c(2023,11), frequency = 12)
+                             , sheet = "Exogenas",range = "b3:d16")
+                   , start = c(2023,12), frequency = 12)
 exogenas_pry_lx <- log(exogenas_pry)
 dim(exogenas_pry_lx)
 
 # Pronosticos libres -----
 # -----------------------------------------------------------------------------#
 
-# Pron?stico libre modelo 1
-horizonte <- 19
+# Pronostico libre modelo 1
+horizonte <- 13
 fore_mod1 <- forecast(mod1,h=horizonte)
 exp(fore_mod1$mean)
 
@@ -238,9 +238,9 @@ salidaDM <- NULL
 
 for(i in 1:horizonte){
   salida <-  cbind("esta. prueba"=dm.test(rmse_err_mod1[i,],rmse_err_mod2[i,], h = i
-                                          ,alternative=c("less"))$statistic
+                                          ,alternative=c("less"),varestimator = "bartlett")$statistic
                    ,"p-valor"=dm.test(rmse_err_mod1[i,],rmse_err_mod2[i,], h = i
-                                      ,alternative=c("less"))$p.value)
+                                      ,alternative=c("less"),varestimator = "bartlett")$p.value)
   salidaDM <- rbind(salidaDM,salida)
 }
 rownames(salidaDM) <- c("1_paso","2_pasos","3_pasos","4_pasos"
@@ -250,6 +250,8 @@ rownames(salidaDM) <- c("1_paso","2_pasos","3_pasos","4_pasos"
 write.csv(salidaDM,"Datos_sal/Prueba_Diebold_Mariano_modelos_Arima.csv")
 View(salidaDM)
 
+# Para el tema de varianza negativa en la prueba de diebold / Mariano ver
+# https://www.sciencedirect.com/science/article/abs/pii/S0169207017300559
 
 # Fin eval fuera de muestra ----
 # -----------------------------------------------------------------------------#
@@ -295,7 +297,7 @@ View(H_mat2)
 # Definicion de las restricciones y matriz C
 
 # Objetivo
-# Restriccion1: finalizar 2023 la inflacion sea 12%
+# Restriccion1: finalizar 2023 la inflacion sea 9.6%
 # Restriccion2: finalizar 2024 con inflacion sea 5%
 
 
@@ -314,7 +316,7 @@ C_def <- base::matrix(C_in, ncol = num_restri
 base::colnames(C_def) <- base::paste("Rest"
                                      ,base::seq(1:num_restri),sep = "_")
 C_def <- xts(C_def
-             , order.by = seq.Date(as.Date("2023-6-1"), as.Date("2024-12-1")
+             , order.by = seq.Date(as.Date("2023-12-1"), as.Date("2024-12-1")
                                    , "month") )
   
 
@@ -322,20 +324,20 @@ C_def <- xts(C_def
 # -----------------------------------------------------------------------------#
 
 
-C_def[7,1] <- 1  # Bandera donde se va a restringir el pronostico
-C_def[19,2] <- 1 # Restriccion 2
+C_def[1,1] <- 1  # Bandera donde se va a restringir el pronostico
+C_def[13,2] <- 1 # Restriccion 2
 
 
 # Definicion de la restriccion puntual. Esto se hace basado 
 # en una fecha de referencia para el caso de la inflacion
-# Es decir, se quiere que al cierre de 2023 la inflacion sea 12%.
-# entonces valor de log(IPC 2023:12) = log(IPC 2022:12)*1.12
-#                   log(IPC 2024:12) = log(IPC 2022:12)*1.12*1.05
+# Es decir, se quiere que al cierre de 2023 la inflacion sea 9.6%.
+# entonces valor de log(IPC 2023:12) = log(IPC 2022:12)*1.096
+#                   log(IPC 2024:12) = log(IPC 2022:12)*1.096*1.05
 
-valor_log_ref <- tail(Base_ent_ts,6)[1,1]   # valor log de IPC 2023:12
+valor_log_ref <- tail(Base_ent_ts,12)[1,1]   # valor log de IPC 2023:12
 
 # Definición valores a los que debe estar condicionado el pronóstico
-fore_obj <- base::matrix(c(valor_log_ref*1.12, valor_log_ref*1.12*1.05)
+fore_obj <- base::matrix(c(valor_log_ref*1.096, valor_log_ref*1.096*1.05)
                         , ncol = 1, nrow = num_restri
                         , byrow = T)
 
