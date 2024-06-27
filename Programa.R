@@ -261,7 +261,7 @@ View(salidaDM)
 
 
 # Metodologia pronos restringidos ----
-# implementacion metodologica descrito por Guerrero (1989)
+# implementacion metodologica del paper descrito por Guerrero (1989)
 # -----------------------------------------------------------------------#
 
 
@@ -405,37 +405,37 @@ write.csv(salida2,"Datos_sal/pronostico_restringido_mod2.csv")
 
 num_restri
 
-test_rest <- function(fore_obj, fore_libre, sigma_modelo
-                      , num_restri, H_entra, C_entra, num_datos){
-  Z1 <-  base::matrix(fore_libre, ncol = 1,nrow = base::length(fore_libre), byrow = T)
-  res_e <- fore_obj - base::t(C_entra)%*%Z1
-  res_b <- matlib::inv(base::t(C_entra)%*%base::t(H_entra)%*%H_entra%*%C_entra)
-  res_a <- base::t(H_entra)%*%(H_entra)%*%C_entra%*%res_b
-  H1 <- (1/sigma_modelo)*(t(res_e)%*%res_b%*%res_e)
-  H2 <- (1/num_restri)*(t(res_e)%*%res_b%*%res_e)*H1
+# test_rest <- function(fore_obj, fore_libre, sigma_modelo
+#                       , num_restri, H_entra, C_entra, num_datos){
+#   Z1 <-  base::matrix(fore_libre, ncol = 1,nrow = base::length(fore_libre), byrow = T)
+#   res_e <- fore_obj - base::t(C_entra)%*%Z1
+#   res_b <- matlib::inv(base::t(C_entra)%*%base::t(H_entra)%*%H_entra%*%C_entra)
+#   res_a <- base::t(H_entra)%*%(H_entra)%*%C_entra%*%res_b
+#   H1 <- (1/sigma_modelo)*(t(res_e)%*%res_b%*%res_e)
+#   H2 <- (1/num_restri)*(t(res_e)%*%res_b%*%res_e)*H1
+# 
+#   print("Prueba de compatilidad de las restriciones I")
+#   print(paste("Punto_critico: ", round(H2,digits = 4)," "
+#               ,"p-valor:",stats::pchisq(H2,num_restri)))
+#   
+#   print("Prueba de compatilidad de las restriciones II")
+#   print(paste("Punto_critico: ", round(H1,digits = 4)," "
+#               ,"p-valor:",round(stats::pchisq(H1,num_restri),digits = 4)))
+# 
+# }
 
-  print("Prueba de compatilidad de las restriciones I")
-  print(paste("Punto_critico: ", round(H2,digits = 4)," "
-              ,"p-valor:",stats::pchisq(H2,num_restri)))
-  
-  print("Prueba de compatilidad de las restriciones II")
-  print(paste("Punto_critico: ", round(H1,digits = 4)," "
-              ,"p-valor:",round(stats::pchisq(H1,num_restri),digits = 4)))
-
-}
-
-test_rest(fore_obj = fore_obj, fore_libre = fore_mod1$mean
-                         , sigma_modelo = mod1$sigma2
-                         , num_restri = num_restri 
-                         , H_entra = H_mat1
-                         , C_entra = C_def, num_datos = dim(Base_ent_ts)[1])
-
-
-test_rest(fore_obj = fore_obj, fore_libre = fore_mod2$mean
-          , sigma_modelo = mod2$sigma2
-          , num_restri = num_restri 
-          , H_entra = H_mat2
-          , C_entra = C_def, num_datos = dim(Base_ent_ts)[1])
+# test_rest(fore_obj = fore_obj, fore_libre = fore_mod1$mean
+#                          , sigma_modelo = mod1$sigma2
+#                          , num_restri = num_restri 
+#                          , H_entra = H_mat1
+#                          , C_entra = C_def, num_datos = dim(Base_ent_ts)[1])
+# 
+# 
+# test_rest(fore_obj = fore_obj, fore_libre = fore_mod2$mean
+#           , sigma_modelo = mod2$sigma2
+#           , num_restri = num_restri 
+#           , H_entra = H_mat2
+#           , C_entra = C_def, num_datos = dim(Base_ent_ts)[1])
 
 
 
