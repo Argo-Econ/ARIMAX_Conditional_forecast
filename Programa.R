@@ -24,7 +24,7 @@ p_load(readxl, sandwich, car, lmtest, TSstudio, lmtest, forecast
 #------------------------------------------------------------------------------#
 Base_ent <- read_xlsx("Base_Modelo_ARIMAX.xlsx"
                               , sheet = "Base"
-                              , range = "a2:e289", col_names = T)
+                              , range = "a2:e295", col_names = T)
 Base_ent_ts <- ts(Base_ent[,-1],start = c(2000,1),frequency = 12)
 tail(Base_ent_ts)
 
@@ -83,7 +83,7 @@ eacf(diff(Base_ent_ts[,1]))
 
 
 # Primer modelo modelo IPC sin Ex?genas
-mod1 <- Arima(Base_ent_ts_lx[,1],order = c(2,2,2),seasonal = c(1,0,0))
+mod1 <- Arima(Base_ent_ts_lx[,1],order = c(12,2,1),seasonal = c(0,0,0))
 summary(mod1)
 lmtest::coeftest(mod1)
 checkresiduals(mod1)
@@ -91,7 +91,7 @@ shapiro.test(mod1$residuals)
 
 
 # segundo modelo incorporando ex?genas
-mod2 <- auto.arima(Base_ent_ts_lx[,1],d=1, D = 1, stationary = F
+mod2 <- auto.arima(Base_ent_ts_lx[,1],d=1, D = 0, stationary = F
                    , stepwise = F, xreg = Base_ent_ts_lx[,-1]
                    , trace = T)
 summary(mod2)
@@ -104,8 +104,8 @@ shapiro.test(mod2$residuals)
 # Pronos exogenas ----
 #------------------------------------------------------------------------------#
 exogenas_pry <- ts(read_xlsx("Base_Modelo_ARIMAX.xlsx"
-                             , sheet = "Exogenas",range = "b3:d16")
-                   , start = c(2023,12), frequency = 12)
+                             , sheet = "Exogenas",range = "b3:d22")
+                   , start = c(2024,6), frequency = 12)
 exogenas_pry_lx <- log(exogenas_pry)
 dim(exogenas_pry_lx)
 
@@ -113,7 +113,7 @@ dim(exogenas_pry_lx)
 # -----------------------------------------------------------------------------#
 
 # Pronostico libre modelo 1
-horizonte <- 13
+horizonte <- 19
 fore_mod1 <- forecast(mod1,h=horizonte)
 exp(fore_mod1$mean)
 
@@ -165,7 +165,7 @@ for(j in 1:horizonte){
   base_train <- ts(base_in[(1:round(nrow(base_in)*recorte_fm)),]
                    , start = c(2000,1),frequency = 12)
   for(i in 1:(pronostico-j+1)) {
-    mod1_sim <- Arima(base_train[,1], order = c(2,2,2),seasonal = c(1,0,0)
+    mod1_sim <- Arima(base_train[,1], order = c(12,2,1),seasonal = c(0,0,0)
                       , xreg = base_train[,-1]
                       , method="CSS-ML")  
     
@@ -201,7 +201,7 @@ for(j in 1:horizonte){
   base_train <- base_in[(1:round(nrow(base_in)*recorte_fm)),1]
   base_train_exo <- exogenas[(1:round(nrow(exogenas)*recorte_fm)),]
   for(i in 1:(pronostico-j+1)) {
-    mod2_sim <- auto.arima(base_train, xreg=base_train_exo,d=1, D = 1, stationary = F
+    mod2_sim <- auto.arima(base_train, xreg=base_train_exo,d=1, D = 0, stationary = F
                            , stepwise = T , trace = F)
     
     if(j==1){pronos_ind <- t(exogenas[(nrow(as.matrix(base_train))+1):(nrow(as.matrix(base_train))+j),])}
@@ -297,8 +297,8 @@ View(H_mat2)
 # Definicion de las restricciones y matriz C
 
 # Objetivo
-# Restriccion1: finalizar 2023 la inflacion sea 9.6%
-# Restriccion2: finalizar 2024 con inflacion sea 5%
+# Restriccion1: finalizar 2024 la inflacion sea 5.7%
+# Restriccion2: finalizar 2025 con inflacion sea 3%
 
 
 Z1 <-  base::matrix(fore_mod1$mean, ncol = 1
@@ -316,7 +316,7 @@ C_def <- base::matrix(C_in, ncol = num_restri
 base::colnames(C_def) <- base::paste("Rest"
                                      ,base::seq(1:num_restri),sep = "_")
 C_def <- xts(C_def
-             , order.by = seq.Date(as.Date("2023-12-1"), as.Date("2024-12-1")
+             , order.by = seq.Date(as.Date("2024-12-1"), as.Date("2025-12-1")
                                    , "month") )
   
 
@@ -325,7 +325,7 @@ C_def <- xts(C_def
 
 
 C_def[1,1] <- 1  # Bandera donde se va a restringir el pronostico
-C_def[13,2] <- 1 # Restriccion 2
+C_def[19,2] <- 1 # Restriccion 2
 
 
 # Definicion de la restriccion puntual. Esto se hace basado 
