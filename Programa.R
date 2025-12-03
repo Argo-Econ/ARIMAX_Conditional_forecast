@@ -25,7 +25,7 @@ p_load(readxl, sandwich, car, lmtest, TSstudio, lmtest, forecast
 #------------------------------------------------------------------------------#
 Base_ent <- read_xlsx("Base_Modelo_ARIMAX.xlsx"
                               , sheet = "Base"
-                              , range = "a2:e307", col_names = T)
+                              , range = "a2:e312", col_names = T)
 Base_ent_ts <- ts(Base_ent[,-1],start = c(2000,1),frequency = 12)
 tail(Base_ent_ts)
 
@@ -84,8 +84,14 @@ eacf(diff(log(Base_ent_ts[,1])))
 
 
 
-# Primer modelo modelo IPC sin Ex?genas
-mod1 <- Arima(log(Base_ent_ts[,1]),order = c(2,1,2),seasonal = c(1,0,0))
+# Primer modelo modelo IPC sin Exogenas
+p <- 4 # valor para la parte autoregresiva
+d <- 1 # num. de diferencia que voy aplicar internamente para lograr estacionariedad
+q <- 2 # valor para la parte de medias moviles (memoria)
+P <- 1 # valor para la parte autoregresiva estacional
+D <- 0 # num. de diferencias estacionales para lograr estacionariedad (parte estacional)
+Q <- 0 # valor parte de medias moviles estacionales
+mod1 <- Arima(log(Base_ent_ts[,1]),order = c(p,d,q),seasonal = c(P,D,Q), method = "ML")
 summary(mod1)
 lmtest::coeftest(mod1)
 checkresiduals(mod1)
@@ -106,8 +112,8 @@ shapiro.test(mod2$residuals)
 # Pronos exogenas ----
 #------------------------------------------------------------------------------#
 exogenas_pry <- ts(read_xlsx("Base_Modelo_ARIMAX.xlsx"
-                             , sheet = "Exogenas",range = "b3:d22")
-                   , start = c(2025,6), frequency = 12)
+                             , sheet = "Exogenas",range = "b3:d17")
+                   , start = c(2025,11), frequency = 12)
 exogenas_pry_lx <- log(exogenas_pry)
 dim(exogenas_pry_lx)
 
@@ -115,7 +121,7 @@ dim(exogenas_pry_lx)
 # -----------------------------------------------------------------------------#
 
 # Pronostico libre modelo 1
-horizonte <- 19
+horizonte <- 14
 fore_mod1 <- forecast(mod1,h=horizonte)
 windows()
 autoplot(fore_mod1)
@@ -125,7 +131,7 @@ windows()
 plot(fore_mod1, main = "Pronos libres log IPC mod1")
 lines(mod1$fitted,col="green")
 
-# Pron?stico libre modelo 2
+# Pronstico libre modelo 2
 fore_mod2 <- forecast(mod2, xreg = exogenas_pry_lx)
 exp(fore_mod2$mean)
 
@@ -169,7 +175,7 @@ for(j in 1:horizonte){
   base_train <- ts(base_in[(1:round(nrow(base_in)*recorte_fm)),]
                    , start = c(2000,1),frequency = 12)
   for(i in 1:(pronostico-j+1)) {
-    mod1_sim <- Arima(base_train[,1], order = c(2,1,1),seasonal = c(0,0,0)
+    mod1_sim <- Arima(base_train[,1], order = c("Valor p","Valor d","Valor q"),seasonal = c("Valor P","Valor D","Valor Q")
                       , xreg = base_train[,-1]
                       , method="CSS")  
     
@@ -178,7 +184,7 @@ for(j in 1:horizonte){
     
     fore_mod1_sim <- forecast(mod1_sim
                               , xreg=pronos_ind)
-    
+    #calculo del error
     rmse_err  <- rmse(base_in[(nrow(as.matrix(base_train))+1):(nrow(as.matrix(base_train))+j),1],fore_mod1_sim$mean)
     rmse_err_mod1[j,i] <- rmse_err
     base_train <- rbind(as.matrix(base_train),base_in[(nrow(as.matrix(base_train))+1):(nrow(as.matrix(base_train))+1),])
@@ -187,7 +193,7 @@ for(j in 1:horizonte){
 }
 
 
-View(rmse_err_mod1)
+View(t(rmse_err_mod1))
 
 write.csv(t(rmse_err_mod1),"Datos_sal/estructura_errores_mod1.csv")
 openxlsx::write.xlsx(t(rmse_err_mod1),"Datos_sal/estructura_errores_mod1.xlsx")
@@ -224,7 +230,7 @@ for(j in 1:horizonte){
 }
 
 
-View(rmse_err_mod2)
+View(t(rmse_err_mod2))
 
 write.csv(t(rmse_err_mod2),"Datos_sal/estructura_errores_mod2.csv")
 openxlsx::write.xlsx(t(rmse_err_mod2),"Datos_sal/estructura_errores_mod2.xlsx")
@@ -239,7 +245,6 @@ openxlsx::write.xlsx(t(rmse_err_mod2),"Datos_sal/estructura_errores_mod2.xlsx")
 
 # Pruebas de Dieblod & Mariano ----
 salidaDM <- NULL
-dm.test()
 
 
 i<-1
@@ -262,14 +267,17 @@ View(salidaDM)
 
 # Fin eval fuera de muestra ----/
 # -----------------------------------------------------------------------------#
+# -----------------------------------------------------------------------------#
+# -----------------------------------------------------------------------------#
+# -----------------------------------------------------------------------------#
 
 
 
 
-
+# -----------------------------------------------------------------------------#
 # Metodologia pronos restringidos ----
 # implementacion metodologica del paper descrito por Guerrero (1989)
-# -----------------------------------------------------------------------#
+# -----------------------------------------------------------------------------#
 
 
 # Generacion impulso respuesta ----
